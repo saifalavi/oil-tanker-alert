@@ -3,58 +3,67 @@ import requests
 from datetime import datetime
 from urllib.parse import quote
 
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
-
 KEYWORDS = [
-    "Bangladesh",
-    "Chattogram",
-    "Chittagong",
-    "Mongla",
-    "oil tanker",
-    "crude oil",
-    "diesel",
-    "petrol",
+    '"oil tanker"',
+    '"crude oil"',
+    '"oil shipment"',
+    '"oil terminal"',
+    "petroleum",
+    "refinery",
+    "OPEC",
+    '"fuel import"',
+    '"Bangladesh fuel"',
+    '"Bangladesh Petroleum Corporation"',
+    "BPC",
+    '"Jamuna Oil"',
+    '"Padma Oil"',
+    '"Meghna Petroleum"',
     "LPG",
-    "Jamuna Oil",
-    "Padma Oil",
-    "Meghna Petroleum",
-    "BPC"
+    "diesel",
+    "petrol"
 ]
 
 
 def get_oil_news():
 
-    query = " OR ".join(KEYWORDS)
+    query = (
+        "(" + " OR ".join(KEYWORDS) + ")"
+        " NOT (football OR soccer OR baseball OR basketball "
+        "OR NFL OR NBA "
+        "OR Disney OR Universal "
+        "OR movie OR celebrity "
+        "OR travel OR tourism "
+        "OR car OR SUV OR Chevrolet "
+        "OR Tesla OR Apple OR iPhone "
+        "OR entertainment)"
+    )
 
     url = (
         "https://newsapi.org/v2/everything?"
         f"q={quote(query)}"
         "&language=en"
-        "&sortBy=publishedAt"
+        "&searchIn=title"
+        "&sortBy=relevancy"
         "&pageSize=5"
         f"&apiKey={NEWS_API_KEY}"
     )
 
     try:
+
         response = requests.get(url, timeout=30)
-
         data = response.json()
-
 
         if data.get("status") != "ok":
             return f"❌ NewsAPI Error:\n{data}"
 
-
         articles = data.get("articles", [])
 
-
         if not articles:
-            return "📰 No oil news found."
-
+            return "📰 No oil, tanker or refinery news found."
 
         news = ""
 
@@ -70,20 +79,15 @@ def get_oil_news():
                 f"🔗 {link}\n\n"
             )
 
-
         return news
 
-
     except Exception as e:
-
         return f"❌ Error: {e}"
-
 
 
 def send_telegram(message):
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
 
     try:
 
@@ -91,18 +95,16 @@ def send_telegram(message):
             url,
             data={
                 "chat_id": CHAT_ID,
-                "text": message
+                "text": message,
+                "disable_web_page_preview": True
             },
             timeout=30
         )
 
         print(response.text)
 
-
     except Exception as e:
-
         print(f"Telegram Error: {e}")
-
 
 
 def main():
@@ -112,12 +114,9 @@ def main():
         f"📅 {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
     )
 
-
     report += get_oil_news()
 
-
     send_telegram(report)
-
 
 
 if __name__ == "__main__":
