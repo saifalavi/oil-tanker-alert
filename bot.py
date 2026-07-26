@@ -6,18 +6,19 @@ from datetime import datetime
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-
 url = (
     "https://newsapi.org/v2/everything?"
-    "q=oil OR tanker OR crude OR diesel OR petrol OR LNG"
+    "q=oil"
     "&language=en"
     "&sortBy=publishedAt"
-    "&pageSize=5"
+    "&pageSize=10"
     f"&apiKey={NEWS_API_KEY}"
 )
 
+
 try:
-    response = requests.get(url, timeout=30)
+    response = requests.get(if data.get("status") != "ok":
+    message = f"❌ NewsAPI Error: {data}")
     data = response.json()
 
     message = f"🛢️ Oil Intelligence Report\n"
