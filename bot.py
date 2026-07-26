@@ -34,12 +34,3 @@ else:
         message += f"{i}. {title}\n🏢 {source}\n\n"
 
 telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-requests.post(
-    telegram_url,
-    data={
-        "chat_id": CHAT_ID,
-        "text": message
-    },
-    timeout=30
-)
