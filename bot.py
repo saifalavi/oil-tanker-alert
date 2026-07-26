@@ -24,8 +24,25 @@ KEYWORDS = [
     '"Meghna Petroleum"',
     "LPG",
     "diesel",
-    "petrol"
+    "petrol",
+    '"Strait of Hormuz"',
+    "VLCC",
+    "Suezmax",
+    "Aframax"
 ]
+
+ALLOWED_SOURCES = {
+    "Reuters",
+    "BBC News",
+    "CNBC",
+    "Bloomberg",
+    "Business Insider",
+    "OilPrice.com",
+    "Rigzone",
+    "The Maritime Executive",
+    "Offshore Energy",
+    "S&P Global"
+}
 
 
 def get_oil_news():
@@ -37,8 +54,7 @@ def get_oil_news():
         "OR Disney OR Universal "
         "OR movie OR celebrity "
         "OR travel OR tourism "
-        "OR car OR SUV OR Chevrolet "
-        "OR Tesla OR Apple OR iPhone "
+        "OR car OR SUV OR auction "
         "OR entertainment)"
     )
 
@@ -48,7 +64,7 @@ def get_oil_news():
         "&language=en"
         "&searchIn=title"
         "&sortBy=relevancy"
-        "&pageSize=5"
+        "&pageSize=20"
         f"&apiKey={NEWS_API_KEY}"
     )
 
@@ -62,12 +78,33 @@ def get_oil_news():
 
         articles = data.get("articles", [])
 
-        if not articles:
-            return "📰 No oil, tanker or refinery news found."
+        filtered = []
+        seen_titles = set()
+
+        for article in articles:
+
+            title = article.get("title", "No title")
+            source = article.get("source", {}).get("name", "Unknown")
+            link = article.get("url", "")
+
+            if source not in ALLOWED_SOURCES:
+                continue
+
+            if "consent.yahoo.com" in link:
+                continue
+
+            if title.lower() in seen_titles:
+                continue
+
+            seen_titles.add(title.lower())
+            filtered.append(article)
+
+        if not filtered:
+            return "📰 No trusted oil news found."
 
         news = ""
 
-        for i, article in enumerate(articles, 1):
+        for i, article in enumerate(filtered[:5], 1):
 
             title = article.get("title", "No title")
             source = article.get("source", {}).get("name", "Unknown")
