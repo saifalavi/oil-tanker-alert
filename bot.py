@@ -1,11 +1,13 @@
 import os
+import json
 import requests
-from datetime import datetime
 from urllib.parse import quote
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+
+SENT_FILE = "sent_news.json"
 
 KEYWORDS = [
     '"oil tanker"',
@@ -45,6 +47,18 @@ ALLOWED_SOURCES = {
 }
 
 
+def load_sent():
+    if os.path.exists(SENT_FILE):
+        with open(SENT_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
+def save_sent(data):
+    with open(SENT_FILE, "w") as f:
+        json.dump(data, f)
+
+
 def get_oil_news():
 
     query = (
@@ -63,93 +77,75 @@ def get_oil_news():
         f"q={quote(query)}"
         "&language=en"
         "&searchIn=title"
-        "&sortBy=relevancy"
+        "&sortBy=publishedAt"
         "&pageSize=20"
         f"&apiKey={NEWS_API_KEY}"
     )
 
-    try:
+    response = requests.get(url, timeout=30)
+    data = response.json()
 
-        response = requests.get(url, timeout=30)
-        data = response.json()
+    if data.get("status") != "ok":
+        return f"❌ NewsAPI Error:\n{data}"
 
-        if data.get("status") != "ok":
-            return f"❌ NewsAPI Error:\n{data}"
+    sent = load_sent()
 
-        articles = data.get("articles", [])
+    news = ""
+    count = 0
 
-        filtered = []
-        seen_titles = set()
+    for article in data.get("articles", []):
 
-        for article in articles:
+        title = article.get("title", "")
+        source = article.get("source", {}).get("name", "")
+        link = article.get("url", "")
 
-            title = article.get("title", "No title")
-            source = article.get("source", {}).get("name", "Unknown")
-            link = article.get("url", "")
+        if source not in ALLOWED_SOURCES:
+            continue
 
-            if source not in ALLOWED_SOURCES:
-                continue
+        if "consent.yahoo.com" in link.lower():
+            continue
 
-            if "consent.yahoo.com" in link:
-                continue
+        if title in sent:
+            continue
 
-            if title.lower() in seen_titles:
-                continue
+        news += (
+            f"{count+1}. {title}\n"
+            f"📰 Source: {source}\n"
+            f"🔗 {link}\n\n"
+        )
 
-            seen_titles.add(title.lower())
-            filtered.append(article)
+        sent.append(title)
+        count += 1
 
-        if not filtered:
-            return "📰 No trusted oil news found."
+        if count == 5:
+            break
 
-        news = ""
+    save_sent(sent[-200:])
 
-        for i, article in enumerate(filtered[:5], 1):
+    if count == 0:
+        return "📰 No new oil news found."
 
-            title = article.get("title", "No title")
-            source = article.get("source", {}).get("name", "Unknown")
-            link = article.get("url", "")
-
-            news += (
-                f"{i}. {title}\n"
-                f"📰 Source: {source}\n"
-                f"🔗 {link}\n\n"
-            )
-
-        return news
-
-    except Exception as e:
-        return f"❌ Error: {e}"
+    return news
 
 
 def send_telegram(message):
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-    try:
-
-        response = requests.post(
-            url,
-            data={
-                "chat_id": CHAT_ID,
-                "text": message,
-                "disable_web_page_preview": True
-            },
-            timeout=30
-        )
-
-        print(response.text)
-
-    except Exception as e:
-        print(f"Telegram Error: {e}")
+    requests.post(
+        url,
+        data={
+            "chat_id": CHAT_ID,
+            "text": message,
+            "disable_web_page_preview": True
+        },
+        timeout=30
+    )
 
 
 def main():
 
-    report = (
-        "🛢️ Oil Intelligence Report\n"
-        f"📅 {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
-    )
+    report = "🛢️ Oil Intelligence Report\n\n"
 
     report += get_oil_news()
 
